@@ -1,6 +1,9 @@
 # Movie Reviews Text Analyzation Project
-### Parterner : Junjie Tsai
-## Objectives: Practice using web crawler to craw movie review data from Rotten Tomatoes; Conducts text analyzation on movie reviews (transform text data to feature vectors, conduct sentiment analysis, etc.); Focuses on the superhero movies from Marvel and DC, to train machine learning models on the review data to predict which production companies the movie came from.
+### Partner : Junjie Tsai
+### Objectives: 
+###     1. Practice using web crawler to craw movie review data from Rotten Tomatoes; 
+###     2. Conducts text analyzation on movie reviews (transform text data to feature vectors, conduct sentiment analysis, etc.);
+###     3.Focuses on the superhero movies from Marvel and DC, to train machine learning models on the review data to predict which production companies the movie came from.
 
 ## Movie List: 
 - [Movielist_DC.csv](https://github.com/JunjieTsai/TAD2019_jc9033/blob/master/Movielist_DC.csv): Names and rottentomatoes links of 46 DC movies.
