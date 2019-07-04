@@ -5,19 +5,15 @@
 ####     2. Conducts text analyzation on movie reviews (transform text data to feature vectors, conduct sentiment analysis, etc.);
 ####     3.Focuses on the superhero movies from Marvel and DC, to train machine learning models on the review data to predict which production companies the movie came from.
 
-## Final Report
+## [Final Report](https://www.authorea.com/users/249324/articles/372352-exploring-the-differences-between-marvel-and-dc-movies-based-on-reviews)
 
 
-## Pre-precoess and analitics Methods: 
-### web crawler
-### preliminary Analysis
-### Sentiment Analysis
-### Term Frequencies Analysis
-### Machine Learning Modles (Random Forest, SVM, Naive Based, etc.)
-### Topic models, Fish score
+## Preprocessing and Analytics Methods: 
+- [Preliminary Analysis]( https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/preliminary%20analysis.ipynb)
+- [Sentiment Analysis, Term Frequencies Analysis, Machine Learning Models(Random Forest, SVM, Naive Based, etc.)](https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/Methods.pdf)
+- [Topic models, Fish score] https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/topic%20models%200513_40%20movies.Rmd
 
 
-### Future work
 ## Data:
 ### Movie List: 
 - [Movielist_DC.csv](https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/Movielist_DC.csv): Names and rottentomatoes links of 46 DC movies.
@@ -31,8 +27,7 @@
 - [Reviews_DC.csv](https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/Reviews_DC.csv): 40385 reviews for 46 DC movies; every review has the star and date infomation.
 - [Reviews_Marvel.csv](https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/Reviews_Marvel.csv): 1186 reviews for 21 Marvel movies; every review has the star and date infomation.
 
-## Preliminary Analysis: 
-- [Preliminary Analysis]( https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/preliminary%20analysis.ipynb)
+
 
 **To be noticed:**
 - For each movie on rottentomatoes.com, maximum 51 pages (about 1000 comments) of audience reviews are available.
