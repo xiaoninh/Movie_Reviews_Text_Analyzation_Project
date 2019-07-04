@@ -1,0 +1,510 @@
+---
+title: "Untitled"
+author: "Junjie Cai"
+date: "May 12, 2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# set environment & Load data
+```{r, warning=FALSE}
+rm(list =ls())
+library(quanteda)
+library(quanteda.corpora)
+library(dplyr)
+
+set.seed(1)
+
+# set working directory
+setwd("/Users/Junjie/Documents/junjie/TAD/project")  
+
+# load movie meatadata
+BasicInfo_DC <- read.csv('data/BasicInfo_DC.csv')
+BasicInfo_MV <- read.csv('data/BasicInfo_Marvel.csv')
+BasicInfo_DC <- BasicInfo_DC[26:46,]
+BasicInfo_MV <- BasicInfo_MV#[1:21,]
+BasicInfo_DC$studio <- 'dc'
+BasicInfo_MV$studio <- 'marvel'
+BasicInfo_DCMV <- rbind(BasicInfo_DC, BasicInfo_MV)
+
+# load reviews that are group by movies
+dc <- read.csv('data/Reviews_DC_GroupbyMovie.csv')
+mv <- read.csv('data/Reviews_Marvel_GroupbyMovie.csv')
+dc <- dc[26:46,]
+mv <- mv#[1:21,]
+dc$review <- as.character(dc$review)
+mv$review <- as.character(mv$review)
+dc$X <- NULL
+mv$X <- NULL
+names(dc) <- c('movie', 'text')
+names(mv) <- c('movie', 'text')
+
+dcmv <- rbind(dc,mv)
+
+# remove movie names
+Movielist_DC <- read.csv('data/Movielist_DC.csv')
+Movielist_MV <- read.csv('data/Movielist_Marvel.csv')
+
+Movielist_DC_token <- paste(unlist(Movielist_DC$name), collapse =" ") %>% 
+  as.character() %>% tolower() %>% unique() %>%
+  tokens(remove_punct = TRUE, remove_numbers = TRUE) %>%
+  unlist() %>% unique()
+
+Movielist_MV_token <- paste(unlist(Movielist_MV$name), collapse =" ") %>% 
+  as.character() %>% tolower() %>% 
+  tokens(remove_punct = TRUE, remove_numbers = TRUE) %>%
+  unlist() %>% unique()
+
+# remove movie names
+Names_DC <- read.csv('data/NamesToRemove_DC.csv')
+Names_MV <- read.csv('data/NamesToRemove_Marvel.csv')
+names(Names_DC) <- "name"
+names(Names_MV) <- "name"
+
+Names_DC_token <- paste(unlist(Names_DC$name), collapse =" ") %>% 
+  as.character() %>% tolower() %>%
+  tokens(remove_punct = TRUE, remove_numbers = TRUE) %>%
+  unlist() %>% unique()
+
+Names_MV_token <- paste(unlist(Names_MV$name), collapse =" ") %>% 
+  as.character() %>% tolower() %>%
+  tokens(remove_punct = TRUE, remove_numbers = TRUE) %>%
+  unlist() %>% unique()
+
+# create corpus
+dc_corpus = corpus(dc)
+mv_corpus = corpus(mv)
+dcmv_corpus <- c(dc_corpus,mv_corpus)
+
+# Create DFM
+dc_dfm <- dfm(dc$text, stem = TRUE, remove_punct = TRUE, tolower = TRUE, remove_numbers = TRUE, 
+              remove = c(Movielist_DC_token, Names_DC_token, stopwords("english")))
+mv_dfm <- dfm(mv$text, stem = TRUE, remove_punct = TRUE, tolower = TRUE, remove_numbers = TRUE, 
+              remove = c(Movielist_MV_token, Names_MV_token, stopwords("english")))
+
+```
+
+# 1 Wordfish
+Wordfish is a Poisson scaling model of one-dimensional document positions.
+
+reference: lab9
+reference: https://tutorials.quanteda.io/machine-learning/wordfish/
+reference: https://quanteda.io/reference/textmodel_wordfish.html
+reference: https://sites.temple.edu/tudsc/2017/11/09/use-wordfish-for-ideological-scaling/
+```{r}
+# one-dimensional text scaling method.
+# unlike wordscores, it does not require reference texts
+
+# Create metadata
+year <- as.character(BasicInfo_DCMV$In_Theaters)
+year <- lapply(year, function(x){
+  substr(x, nchar(x)-4+1, nchar(x))
+})
+year <- as.numeric(year)
+
+studio <- BasicInfo_DCMV$studio
+
+#create data frame
+dcmv_df <- data.frame(year = factor(year),
+                      studio = factor(studio),
+                      text = dcmv$text,
+                      stringsAsFactors = FALSE)
+
+# add text labels
+dcmv_df$text_label <- paste(dcmv_df$studio, dcmv_df$year, sep = "_")
+dcmv_dfm <- dfm(dcmv_df$text, stem = TRUE, remove_punct = TRUE, tolower = TRUE, remove_numbers = TRUE, 
+                remove = c(Movielist_DC_token, Movielist_MV_token, Names_DC_token, Names_MV_token, stopwords("english")))
+
+# 2.2 fit wordfish
+dcmv_dfm@Dimnames$docs <- dcmv_df$text_label
+
+# Setting the index on parties
+dcmv_fish <- textmodel_wordfish(dcmv_dfm, c(1,21)) # second parameter corresponds to index texts
+
+# visualize one-dimensional scaling
+# reference: https://www.rdocumentation.org/packages/quanteda/versions/1.4.3/topics/textplot_scale1d
+textplot_scale1d(dcmv_fish)
+textplot_scale1d(dcmv_fish, groups = dcmv_df$studio, sort = TRUE)
+textplot_scale1d(dcmv_fish, groups = dcmv_df$studio, sort = FALSE) 
+
+# Plot of document positions
+plot(year[1:21], dcmv_fish$theta[1:21]) # These are the dc reviews
+points(year[22:42], dcmv_fish$theta[22:42], pch = 8) # These are the marvel reviews
+
+plot(as.factor(studio), dcmv_fish$theta)
+
+# document positions dataframe
+data.frame(name = BasicInfo_DCMV$name, 
+  studio = factor(studio),
+  year = factor(year),
+  theta = dcmv_fish$theta)
+
+# most important features--word fixed effects
+words <- dcmv_fish$psi # values
+names(words) <- dcmv_fish$features # the words
+
+sort(words)[1:50]
+sort(words, decreasing=T)[1:50]
+
+# Guitar plot
+weights <- dcmv_fish$beta
+
+plot(weights, words)
+
+# also check out wordshoal!
+```
+
+# 2 LDA
+# 2.1 LDA model
+```{r, warning=FALSE}
+libraries <- c("ldatuning", "topicmodels", "ggplot2", "dplyr", "rjson", "quanteda", "lubridate", "parallel", "doParallel", "tidytext", "stringi", "tidyr")
+lapply(libraries, require, character.only = TRUE)
+
+## 2 Selecting K
+# Identify an appropriate number of topics (FYI, this function takes a while)
+# Calculates different metrics to estimate the most preferable number of topics for LDA model.
+# reference: https://www.rdocumentation.org/packages/ldatuning/versions/0.2.0/topics/FindTopicsNumber
+# reference: https://www.rdocumentation.org/packages/ldatuning/versions/0.2.0/topics/FindTopicsNumber_plot
+# reference: https://cran.r-project.org/web/packages/ldatuning/vignettes/topics.html
+# reference: https://www.r-bloggers.com/cross-validation-of-topic-modelling/
+
+# k_optimize <- FindTopicsNumber(
+#   dcmv_dfm,
+#   topics = seq(from = 3, to = 10, by = 1),
+#   metrics = c("Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"),
+#   method = "Gibbs",
+#   control = list(seed = 1),
+#   mc.cores = detectCores(), # to usa all cores available
+#   verbose = TRUE
+# )
+# 
+# FindTopicsNumber_plot(k_optimize)
+
+
+# Visualizing Word weights
+# Set number of topics
+k <- 5
+
+# Fit the topic model with the chosen k
+system.time(
+  dcmv_tm <- LDA(dcmv_dfm, k = k, method = "Gibbs",  control = list(seed = 1)))
+
+
+# gamma = posterior document distribution over topics
+# what are the dimensions of gamma?
+dim(dcmv_tm@gamma)
+dcmv_tm@gamma#[1:5,1:5]
+rowSums(dcmv_tm@gamma) # each row sums to?
+
+# beta = topic distribution over words
+dim(dcmv_dfm)  # how many features do we have?
+dim(dcmv_tm@beta)
+dcmv_tm@beta[,1:5]
+sum(dcmv_tm@beta[1,]) # each row sums to?
+sum(exp(dcmv_tm@beta[5,])) # each row sums to?
+
+# Per topic per word proabilities matrix (beta)
+dcmv_topics <- tidy(dcmv_tm, matrix = "beta") 
+head(dcmv_topics)
+
+# Side note: You can pass objects between tidytext() and topicmodels() functions because tidytext() implements topic models from topicmodels()
+
+# Generates a df of top terms
+dcmv_top_terms <- dcmv_topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+head(dcmv_top_terms)
+
+# Creates a plot of the weights and terms by topic
+dcmv_top_terms %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+
+# Creates a plot of features with greatest difference in word probabilities between two topics
+dcmv_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  filter(topic %in% c("topic1", "topic2")) %>%
+  spread(topic, beta) %>%
+  filter(topic1 > .001 | topic2 > .001) %>%
+  mutate(log_ratio = log2(topic2 / topic1)) %>%
+  arrange(-abs(log_ratio)) %>%
+  slice(c(1:10,(nrow(.)-9):nrow(.))) %>%
+  arrange(-log_ratio) %>%
+  mutate(term = factor(term, levels = unique(term))) %>%
+  ggplot(aes(as.factor(term), log_ratio)) +
+  geom_col(show.legend = FALSE) +
+  xlab("Terms") + ylab("Log-Ratio") +
+  coord_flip()
+
+## 4 Visualizing topic trends over time
+
+# Store the results of the mixture of documents over topics 
+doc_topics <- dcmv_tm@gamma
+
+# Store the results of words over topics
+#words_topics <- dcmv_tm@beta
+
+# Transpose the data so that the days are columns
+doc_topics <- t(doc_topics)
+dim(doc_topics)
+doc_topics[1:5,1:5]
+
+# Arrange topics
+# Find the top topic per column (day)
+max <- apply(doc_topics, 2, which.max)
+
+# Write a function that finds the second max
+which.max2 <- function(x){
+  which(x == sort(x,partial=(k-1))[k-1])
+}
+
+max2 <- apply(doc_topics, 2, which.max2)
+max2 <- sapply(max2, max)
+
+# Combine data
+date = mdy(BasicInfo_DCMV$In_Theaters) # https://www.rdocumentation.org/packages/lubridate/versions/1.7.4/topics/ymd
+top2 <- data.frame(top_topic = max, second_topic = max2, date = date)
+
+# Plot
+dcmv_plot <- ggplot(top2, aes(x=date, y=top_topic, pch="First")) 
+dcmv_plot + geom_point(aes(x=date, y=second_topic, pch="Second") ) +theme_bw() + 
+  ylab("Topic Number") + ggtitle("movie topics time series") + geom_point() + xlab(NULL) + 
+  scale_shape_manual(values=c(18, 1), name = "Topic Rank")
+
+# Examine the top 10 words that contribute the most to each topic using get_terms().
+top_words <- get_terms(dcmv_tm, k=10)
+top_words
+
+# Find the most likely topic for each movie using topics(). 
+most_likely_topic <- topics(dcmv_tm)
+most_likely_topic
+
+# the number of movies of DC & Marvel for eachtopic 
+
+# topic weight for DC & Marvel
+dc_gamma_weight <- colSums(dcmv_tm@gamma[1:21,])
+mv_gamma_weight <- colSums(dcmv_tm@gamma[21:42,])
+
+dc_gamma_weight_percentage <- dc_gamma_weight/sum(dc_gamma_weight)
+mv_gamma_weight_percentage <- mv_gamma_weight/sum(mv_gamma_weight)
+
+data.frame(
+  topic = c("topic1", "topic2", "topic3", "topic4", "topic5"),
+  dc = percent(dc_gamma_weight_percentage),
+  mv = percent(mv_gamma_weight_percentage),
+  difference = percent(dc_gamma_weight_percentage - mv_gamma_weight_percentage))
+```
+
+# 2.1 model stability
+```{r}
+
+```
+
+# 2 LSA
+```{r, warning=FALSE}
+library(lsa)
+# Prepare Data 
+dcmv_fdm <- convert(dcmv_dfm, to = "lsa")
+
+# Estimate LSA
+dcmv_lsa <- lsa(dcmv_fdm, dims = 5)
+
+# document-topic matrix
+dim(dcmv_lsa$dk)
+dcmv_lsa$dk#[1:5,1:5]
+
+# topic-term matrix
+dim(dcmv_fdm)
+dim(dcmv_lsa$tk)
+dcmv_lsa$tk[1:5,]
+
+# Per topic per word weights
+library(reshape2)
+lsa_topics <- dcmv_lsa$tk %>% reshape2:::melt.matrix(.) %>% setNames(c("term", "topic", "weight"))
+head(lsa_topics)
+
+# Generates a df of top terms
+lsa_top_terms <- lsa_topics %>%
+  group_by(topic) %>%
+  top_n(10, weight) %>%
+  ungroup() %>%
+  arrange(topic, -weight)
+
+# Creates a plot of the weights and terms by topic
+lsa_top_terms %>%
+  mutate(term = reorder(term, weight)) %>%
+  ggplot(aes(term, weight, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+
+```
+
+# 3 STM
+The Structural Topic Model (STM) is designed to incorporate document-level variables into a standard topic model.
+```{r}
+library("stm")
+# Fits an STM model
+# reference: https://www.rdocumentation.org/packages/stm/versions/1.3.3/topics/stm
+# If init.type="Spectral" you can also set K=0 to use the algorithm of Lee and Mimno (2014) to set the number of topics (although unlike the standard spectral initialization this is not deterministic).
+
+# system.time(
+#   dcmv_stm <- stm(dcmv_dfm, K = 0, max.em.its=3, seed = 1,
+#                   prevalence = ~studio + year, init.type = c("Spectral"), 
+#                   data = dcmv_df))
+
+system.time(
+  dcmv_stm <- stm(dcmv_dfm, K = 5, max.em.its=10, seed = 1,
+                  prevalence = ~studio + year, data = dcmv_df))
+
+# A plot that summarizes the topics by what words occur most commonly in them
+plot(dcmv_stm, type = "labels")
+
+# A summary plot of the topics that ranks them by their average proportion in the corpus
+# plot(dcmv_stm, type = "summary")
+
+# A visualization of what words are shared and distinctive to two topics
+plot(dcmv_stm, type="perspectives", topics = c(1,4))
+
+# Estimates a regression with topics as the dependent variable and metadata as the independent variables
+# s() is a wrapper for bs() from the splines package
+# A spline of degree D is a function formed by connecting polynomial segments of degree D
+prep <- estimateEffect(1:5 ~ studio + year , dcmv_stm, meta = dcmv_df)
+
+# Plots the distribution of topics over time
+# plot(prep, "year", dcmv_stm, topics = c(1,2), 
+#      method = "continuous", xaxt = "n", xlab = "year")
+
+# Plots the Difference in coverage of the topics according to liberal or conservative ideology
+plot(prep, "studio", model = dcmv_stm,
+     method = "difference", cov.value1 = "dc", cov.value2 = "marvel")
+
+dim(dcmv_stm$theta) # Number of Documents by Number of Topics matrix of topic proportions.
+
+```
+
+```{r}
+plot(dcmv_stm, type = "summary", text.cex=.8)
+```
+
+# 4 Word Embeddings
+```{r, warning=FALSE}
+# Are word embeddings supervised or unsupervised?
+# KEY DIFFERENCE between embeddings and other distributional semantic models we've seen: how we define context.
+# Context in the case of word embeddings is defined by a window (usually symmetric) around the target word.
+# GloVe vs. Word2Vec
+# cool/intuitive intro to W2V: http://mccormickml.com/2016/04/19/word2vec-tutorial-the-skip-gram-model/
+
+library(text2vec)
+
+# choice parameters
+WINDOW_SIZE <- 6
+DIM <- 300
+ITERS <- 10
+MIN_COUNT <- 10
+
+# shuffle text
+set.seed(42L)
+text <- dcmv$text
+text <- sample(text)
+
+# ================================
+# create vocab
+# ================================
+tokens <- space_tokenizer(text)
+rm(text)
+it <- itoken(tokens, progressbar = FALSE)
+vocab <- create_vocabulary(it)
+vocab <- prune_vocabulary(vocab, term_count_min = MIN_COUNT)  # keep only words that meet count threshold
+
+# ================================
+# create term co-occurrence matrix
+# ================================
+vectorizer <- vocab_vectorizer(vocab)
+tcm <- create_tcm(it, vectorizer, skip_grams_window = WINDOW_SIZE, skip_grams_window_context = "symmetric")
+
+# ================================
+# set model parameters
+# ================================
+glove <- GlobalVectors$new(word_vectors_size = DIM, 
+                           vocabulary = vocab, 
+                           x_max = 100,
+                           lambda = 1e-5)
+
+# ================================
+# fit model
+# ================================
+word_vectors_main <- glove$fit_transform(tcm, 
+                                         n_iter = ITERS,
+                                         convergence_tol = 1e-3, 
+                                         n_check_convergence = 1L,
+                                         n_threads = RcppParallel::defaultNumThreads())
+
+# ================================
+# get output
+# ================================
+word_vectors_context <- glove$components
+word_vectors <- word_vectors_main + t(word_vectors_context) # word vectors
+
+# function to compute nearest neighbors
+nearest_neighbors <- function(cue, embeds, N = 5, norm = "l2"){
+  cos_sim <- sim2(x = embeds, y = embeds[cue, , drop = FALSE], method = "cosine", norm = norm)
+  nn <- cos_sim <- cos_sim[order(-cos_sim),]
+  return(names(nn)[2:(N + 1)])  # cue is always the nearest neighbor hence dropped
+}
+
+nearest_neighbors("feminism", word_vectors, N = 50, norm = "l2")
+
+```
+
+# 5 Burstiness
+```{r}
+library(bursts)
+
+# Loading bursty function: a repurposing of some guts of kleinberg()
+bursty <- function(word = "sioux", DTM, date) {
+  word.vec <- DTM[, which(colnames(DTM) == word)]
+  if(length(word.vec) == 0) {
+    print(word, " does not exist in this corpus.")
+  } 
+  else {
+    word.times <- c(0,which(as.vector(word.vec)>0))
+    
+    kl <- kleinberg(word.times, gamma = 0.5)
+    kl$start <- date[kl$start+1]
+    kl$end <- date[kl$end]
+    max_level <- max(kl$level)
+    
+    plot(c(kl$start[1], kl$end[1]), c(1,max_level),
+         type = "n", xlab = "Time", ylab = "Level", bty = "n",
+         xlim = c(kl$start[1], kl$end[1]), ylim = c(1, max_level),
+         yaxt = "n")
+    axis(2, at = 1:max_level)
+    
+    for (i in 1:nrow(kl)) {
+      if (kl$start[i] != kl$end[i]) {
+        arrows(kl$start[i], kl$level[i], kl$end[i], kl$level[i], code = 3, angle = 90,
+               length = 0.05)
+      } 
+      else {
+        points(kl$start[i], kl$level[i])
+      }
+    }
+    
+    print(kl)
+  }
+    #note deviation from standard defaults bec don't have that much data
+}
+
+# 3.1 Evaluating the burstiness of several key words
+bursty("women", dcmv_dfm, date)
+```
