@@ -11,7 +11,7 @@
 ## Preprocessing and Analytics Methods: 
 - [Preliminary Analysis]( https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/preliminary%20analysis.ipynb)
 - [Sentiment Analysis, Term Frequencies Analysis, Machine Learning Models(Random Forest, SVM, Naive Based, etc.)](https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/Methods.pdf)
-- [Topic models, Fish score] https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/topic%20models%200513_40%20movies.Rmd
+- [Topic models, Fish score] (https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/topic%20models%200513_40%20movies.Rmd)
 
 
 ## Data:
