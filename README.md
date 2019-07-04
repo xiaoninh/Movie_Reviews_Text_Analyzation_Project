@@ -5,13 +5,13 @@
 ####     2. Conducts text analyzation on movie reviews (transform text data to feature vectors, conduct sentiment analysis, etc.);
 ####     3.Focuses on the superhero movies from Marvel and DC, to train machine learning models on the review data to predict which production companies the movie came from.
 
-## [Final Report](https://www.authorea.com/users/249324/articles/372352-exploring-the-differences-between-marvel-and-dc-movies-based-on-reviews)
+## [Link to our Final Paper](https://www.authorea.com/users/249324/articles/372352-exploring-the-differences-between-marvel-and-dc-movies-based-on-reviews)
 
 
 ## Preprocessing and Analytics Methods: 
 - [Preliminary Analysis]( https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/preliminary%20analysis.ipynb)
 - [Sentiment Analysis, Term Frequencies Analysis, Machine Learning Models(Random Forest, SVM, Naive Based, etc.)](https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/Methods.pdf)
-- [Topic models, Fish score] (https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/topic%20models%200513_40%20movies.Rmd)
+- [Topic models (https://github.com/xiaoninh/Movie_Reviews_Text_Analyzation_Project/blob/master/topic%20models%200513_40%20movies.Rmd)
 
 
 ## Data:
